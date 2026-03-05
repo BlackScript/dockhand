@@ -1756,7 +1756,7 @@ export async function recreateContainerFromInspect(
 				envId
 			).then(r => drainResponse(r)).catch(() => {});
 
-			// Reconnect networks using full EndpointSettings from inspect
+			// Reconnect networks (EndpointSettings are sanitized inside connectContainerToNetworkRaw)
 			if (!isSharedNetwork) {
 				for (const [, netConfig] of Object.entries(networks)) {
 					const nc = netConfig as any;
@@ -1877,10 +1877,9 @@ export async function recreateContainerFromInspect(
 	// from the old container's settings to avoid getting a random bridge IP.
 	// Skip for shared network modes — EndpointsConfig conflicts with container:/host/none modes.
 	if (!isSharedNetwork && initialNetworkName && initialNetworkConfig) {
-		const endpointConfig = { ...initialNetworkConfig };
 		createConfig.NetworkingConfig = {
 			EndpointsConfig: {
-				[initialNetworkName]: endpointConfig
+				[initialNetworkName]: sanitizeEndpointSettings(initialNetworkConfig)
 			}
 		};
 	}
@@ -1904,7 +1903,7 @@ export async function recreateContainerFromInspect(
 		throw createError;
 	}
 
-	// 6. Connect additional networks using full EndpointSettings from inspect
+	// 6. Connect additional networks (EndpointSettings are sanitized inside connectContainerToNetworkRaw)
 	// Skip for shared network modes — Docker manages networking via the parent container
 	if (!isSharedNetwork) {
 		for (const [netName, netConfig] of Object.entries(networks)) {
@@ -1914,8 +1913,9 @@ export async function recreateContainerFromInspect(
 			if (nc.NetworkID) {
 				try {
 					await connectContainerToNetworkRaw(nc.NetworkID, newContainerId, nc, envId);
+					log?.(`Connected to network "${netName}" (${nc.NetworkID.substring(0, 12)})`);
 				} catch (netError: any) {
-					log?.(`Warning: Failed to connect to network "${netName}": ${netError.message}`);
+					log?.(`Warning: Failed to connect to network "${netName}" (${nc.NetworkID.substring(0, 12)}): ${netError.message}`);
 				}
 			}
 		}
@@ -3454,9 +3454,27 @@ export async function connectContainerToNetwork(
 }
 
 /**
+ * Sanitize EndpointSettings from docker inspect for use with the Docker API.
+ * Removes read-only fields that Docker populates automatically and that cause
+ * errors when passed to /networks/{id}/connect or container create endpoints.
+ */
+export function sanitizeEndpointSettings(endpointSettings: any): any {
+	if (!endpointSettings) return {};
+	const clean: any = {};
+	if (endpointSettings.IPAMConfig) clean.IPAMConfig = endpointSettings.IPAMConfig;
+	if (endpointSettings.Aliases?.length) clean.Aliases = endpointSettings.Aliases;
+	if (endpointSettings.Links) clean.Links = endpointSettings.Links;
+	if (endpointSettings.DriverOpts && Object.keys(endpointSettings.DriverOpts).length > 0) {
+		clean.DriverOpts = endpointSettings.DriverOpts;
+	}
+	if (endpointSettings.MacAddress) clean.MacAddress = endpointSettings.MacAddress;
+	if (endpointSettings.GwPriority) clean.GwPriority = endpointSettings.GwPriority;
+	return clean;
+}
+
+/**
  * Connect a container to a network using a raw EndpointSettings object from inspect data.
- * Passes the full EndpointSettings as-is, preserving all fields (Links, DriverOpts,
- * IPAMConfig.LinkLocalIPs, MacAddress, etc.) without manual field extraction.
+ * Sanitizes the EndpointSettings to remove read-only fields before sending to the API.
  */
 export async function connectContainerToNetworkRaw(
 	networkId: string,
@@ -3466,7 +3484,7 @@ export async function connectContainerToNetworkRaw(
 ): Promise<void> {
 	const body: any = {
 		Container: containerId,
-		EndpointConfig: endpointSettings
+		EndpointConfig: sanitizeEndpointSettings(endpointSettings)
 	};
 
 	const response = await dockerFetch(
