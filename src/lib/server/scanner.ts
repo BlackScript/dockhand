@@ -813,7 +813,7 @@ export async function scanWithTrivy(
 	onProgress?: (progress: ScanProgress) => void
 ): Promise<ScanResult> {
 	const startTime = Date.now();
-	const scannerImage = 'aquasec/trivy:latest';
+	const scannerImage = 'aquasec/trivy:0.69.3@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c';
 	const { trivyArgs } = await getScannerSettings(envId);
 
 	onProgress?.({
@@ -995,7 +995,7 @@ async function getScannerVersion(
 	envId?: number
 ): Promise<string | null> {
 	try {
-		const scannerImage = scannerType === 'grype' ? 'anchore/grype:latest' : 'aquasec/trivy:latest';
+		const scannerImage = scannerType === 'grype' ? 'anchore/grype:latest' : 'aquasec/trivy:0.69.3@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c';
 
 		// Check if image exists first
 		const images = await listImages(envId);
@@ -1065,7 +1065,7 @@ export async function checkScannerUpdates(envId?: number): Promise<{
 		const images = await listImages(envId);
 
 		// Check both scanners
-		for (const [scanner, imageName] of [['grype', 'anchore/grype:latest'], ['trivy', 'aquasec/trivy:latest']] as const) {
+		for (const [scanner, imageName] of [['grype', 'anchore/grype:latest'], ['trivy', 'aquasec/trivy:0.69.3@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c']] as const) {
 			try {
 				// Find local image
 				const localImage = images.find((img) =>

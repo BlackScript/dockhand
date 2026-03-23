@@ -1140,7 +1140,7 @@
 			const response = await fetch(pullUrl, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ image: 'aquasec/trivy:latest' })
+				body: JSON.stringify({ image: 'aquasec/trivy:0.69.3' })
 			});
 
 			if (!response.ok) {
@@ -2255,7 +2255,7 @@
 											{/if}
 											{#if !loadingScannerVersions}
 												{#if !scannerAvailability.trivy}
-													<ImagePullProgressPopover imageName="aquasec/trivy:latest" envId={environment?.id} onComplete={() => reloadScannerAvailability(environment?.id)}>
+													<ImagePullProgressPopover imageName="aquasec/trivy:0.69.3" envId={environment?.id} onComplete={() => reloadScannerAvailability(environment?.id)}>
 														<button class="inline-flex items-center text-2xs px-1.5 py-0 h-4 rounded-full border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
 															<Download class="w-2.5 h-2.5 mr-0.5" />
 															Pull
