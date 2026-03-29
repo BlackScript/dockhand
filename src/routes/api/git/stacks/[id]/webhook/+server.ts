@@ -24,7 +24,8 @@ function verifySignature(payload: string, signature: string | null, secret: stri
 	}
 
 	// GitLab uses X-Gitlab-Token which should match exactly
-	return signature === secret;
+	if (signature.length !== secret.length) return false;
+	return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(secret));
 }
 
 function detectSource(request: Request): string {
@@ -99,8 +100,11 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		// Verify secret via query parameter for GET requests
-		const secret = url.searchParams.get('secret');
-		if (gitStack.webhookSecret && secret !== gitStack.webhookSecret) {
+		const secret = url.searchParams.get('secret') || '';
+		if (gitStack.webhookSecret && (
+			secret.length !== gitStack.webhookSecret.length ||
+			!crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(gitStack.webhookSecret))
+		)) {
 			await auditGitStack(event, 'webhook', id, gitStack.stackName, gitStack.environmentId, {
 				method: 'GET', source: 'get', error: 'invalid_secret'
 			});
