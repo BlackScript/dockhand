@@ -10,7 +10,7 @@
  */
 
 import os from 'node:os';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import argon2 from 'argon2';
 import type { Cookies } from '@sveltejs/kit';
 import {
@@ -852,8 +852,9 @@ function generateBackupCodes(): string[] {
 	const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusable chars: 0, O, 1, I
 	for (let i = 0; i < 10; i++) {
 		let code = '';
+		const bytes = randomBytes(8);
 		for (let j = 0; j < 8; j++) {
-			code += chars.charAt(Math.floor(Math.random() * chars.length));
+			code += chars.charAt(bytes[j] % chars.length);
 		}
 		codes.push(code);
 	}
