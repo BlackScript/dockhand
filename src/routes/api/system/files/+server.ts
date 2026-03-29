@@ -1,8 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { readdirSync, statSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, resolve } from 'node:path';
 import { authorize } from '$lib/server/authorize';
+
+const dataDir = process.env.DATA_DIR || '/app/data';
+const allowedBase = join(dataDir, 'stacks');
 
 export interface FileEntry {
 	name: string;
@@ -27,7 +30,12 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 		return json({ error: 'Permission denied' }, { status: 403 });
 	}
 
-	const path = url.searchParams.get('path') || '/';
+	const requestedPath = url.searchParams.get('path') || '/';
+	const path = resolve(requestedPath);
+
+	if (!path.startsWith(allowedBase)) {
+		return json({ error: 'Zugriff verweigert' }, { status: 403 });
+	}
 
 	try {
 		if (!existsSync(path)) {
@@ -67,9 +75,10 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 			return a.name.localeCompare(b.name);
 		});
 
+		const parent = resolve(join(path, '..'));
 		return json({
 			path,
-			parent: path === '/' ? null : join(path, '..'),
+			parent: parent.startsWith(allowedBase) ? parent : null,
 			entries
 		});
 	} catch (error) {

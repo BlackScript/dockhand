@@ -1,7 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { authorize } from '$lib/server/authorize';
+
+const dataDir = process.env.DATA_DIR || '/app/data';
+const allowedBase = join(dataDir, 'stacks');
 
 /**
  * GET /api/system/files/content
@@ -17,10 +21,16 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 		return json({ error: 'Permission denied' }, { status: 403 });
 	}
 
-	const path = url.searchParams.get('path');
+	const requestedPath = url.searchParams.get('path');
 
-	if (!path) {
+	if (!requestedPath) {
 		return json({ error: 'Path is required' }, { status: 400 });
+	}
+
+	const path = resolve(requestedPath);
+
+	if (!path.startsWith(allowedBase)) {
+		return json({ error: 'Zugriff verweigert' }, { status: 403 });
 	}
 
 	try {
