@@ -53,7 +53,13 @@ export const POST: RequestHandler = async (event) => {
 
 		const source = detectSource(request);
 
-		// Verify webhook secret if set
+		// Webhook-Secret ist Pflicht — ohne Secret kein Deploy (#5)
+		if (!gitStack.webhookSecret) {
+			await auditGitStack(event, 'webhook', id, gitStack.stackName, gitStack.environmentId, {
+				method: 'POST', source, error: 'no_secret_configured'
+			});
+			return json({ error: 'Webhook secret not configured — deploy rejected' }, { status: 403 });
+		}
 		if (gitStack.webhookSecret) {
 			const payload = await request.text();
 			const githubSignature = request.headers.get('x-hub-signature-256');
