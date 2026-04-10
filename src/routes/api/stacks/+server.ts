@@ -101,6 +101,21 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Compose file content is required' }, { status: 400 });
 		}
 
+		// Sicherheitspruefung: Gefaehrliche Compose-Optionen blockieren (#2)
+		const dangerousPatterns = [
+			/privileged\s*:\s*true/i,
+			/network_mode\s*:\s*["']?host["']?/i,
+			/pid\s*:\s*["']?host["']?/i,
+			/ipc\s*:\s*["']?host["']?/i,
+		];
+		for (const pattern of dangerousPatterns) {
+			if (pattern.test(compose)) {
+				return json({
+					error: `Sicherheitsverletzung: ${pattern.source.split('\\s')[0]} ist nicht erlaubt`
+				}, { status: 403 });
+			}
+		}
+
 		// If start is false, only create the compose file without deploying
 		if (start === false) {
 			const result = await saveStackComposeFile(name, compose, true, envIdNum, {
